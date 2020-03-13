@@ -45,7 +45,7 @@ def get_args():
 
     arg.add_argument("--theme", "-f", metavar="/path/to/file or theme_name",
                      help="Which colorscheme file to use. \
-                           Use 'wal --theme' to list builtin themes.",
+                           Use 'wal --theme' to list builtin and user themes.",
                      const="list_themes", nargs="?")
 
     arg.add_argument("--iterative", action="store_true",
@@ -82,6 +82,11 @@ def get_args():
     arg.add_argument("-o", metavar="\"script_name\"", action="append",
                      help="External script to run after \"wal\".")
 
+    arg.add_argument("-p", metavar="\"theme_name\"",
+                     help="permanently save theme to "
+                     "$XDG_CONFIG_HOME/wal/colorschemes with "
+                     "the specified name")
+
     arg.add_argument("-q", action="store_true",
                      help="Quiet mode, don\'t print anything.")
 
@@ -100,6 +105,9 @@ def get_args():
 
     arg.add_argument("-v", action="store_true",
                      help="Print \"wal\" version.")
+
+    arg.add_argument("-w", action="store_true",
+                     help="Use last used wallpaper for color generation.")
 
     arg.add_argument("-e", action="store_true",
                      help="Skip reloading gtk/xrdb/i3/sway/polybar")
@@ -138,6 +146,7 @@ def parse_args_exit(parser):
     if not args.i and \
        not args.theme and \
        not args.R and \
+       not args.w and \
        not args.backend:
         parser.error("No input specified.\n"
                      "--backend, --theme, -i or -R are required.")
@@ -175,6 +184,11 @@ def parse_args(parser):
     if args.R:
         colors_plain = theme.file(os.path.join(CACHE_DIR, "colors.json"))
 
+    if args.w:
+        cached_wallpaper = util.read_file(os.path.join(CACHE_DIR, "wal"))
+        colors_plain = colors.get(cached_wallpaper[0], args.l, args.backend,
+                                  sat=args.saturate)
+
     if args.b:
         args.b = "#%s" % (args.b.strip("#"))
         colors_plain["special"]["background"] = args.b
@@ -182,6 +196,9 @@ def parse_args(parser):
 
     if not args.n:
         wallpaper.change(colors_plain["wallpaper"])
+
+    if args.p:
+        theme.save(colors_plain, args.p, args.l)
 
     sequences.send(colors_plain, to_send=not args.s, vte_fix=args.vte)
 
